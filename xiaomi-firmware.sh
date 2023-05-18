@@ -4,15 +4,15 @@
 
 # Logging defs
 LOGI() {
-    echo -e "[INFO] xiaomi-firmware: $1"
+    echo -e "\033[32m[INFO] xiaomi-firmware: $1\033[0m"
 }
 
 LOGW() {
-    echo -e "[WARNING] xiaomi-firmware: $1"
+    echo -e "\033[33m[WARNING] xiaomi-firmware: $1\033[0m"
 }
 
 LOGE() {
-    echo -e "[ERROR] xiaomi-firmware: $1"
+    echo -e "\033[31m[ERROR] xiaomi-firmware: $1\033[0m"
 }
 
 # Vars
@@ -20,6 +20,8 @@ MY_DIR="${PWD}"
 MY_BINS="${MY_DIR}/bin"
 ANDROID_ROOT="${MY_DIR}/.."
 VENDOR_FIRMWARE="${ANDROID_ROOT}"/vendor/firmware
+RECOVERY_PACKAGE=""
+DEVICE=""
 
 while [ "$#" -gt 0 ]; do
     case "${1}" in
@@ -34,7 +36,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 if [[ -z "$RECOVERY_PACKAGE" || -z "${DEVICE}" ]]; then
-    LOGE "Please define the required values"
+    LOGE "Please define the required values \"--device\" and \"--zip\""
     exit 0
 fi
 
@@ -108,11 +110,24 @@ if [ "${IS_AB}" = true ]; then
     LOGI "Extracting payload.bin from ${RECOVERY_PACKAGE}"
     LOGW "This operation will take a while, take a seat and wait :D"
     extract_fwab &> /dev/null
+    result=$?
 else
     # Extract for A-Only roms
     LOGI "Extracting firmware-update/ folder from ${RECOVERY_PACKAGE}"
     extract_fwaonly &> /dev/null
+    result=$?
 fi
+
+case ${result} in
+    0)
+        LOGI "Extracted successfully!"
+        ;;
+    *)
+        LOGE "Extraction!"
+        exit 0
+        ;;
+esac
+
 
 LOGI "Cleaning up the out dir from useless files"
 for image in ${blocklist[@]}; do
