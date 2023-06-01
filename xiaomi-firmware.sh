@@ -41,16 +41,18 @@ if [[ -z "$RECOVERY_PACKAGE" || -z "${DEVICE}" ]]; then
 fi
 
 blocklist=(
+    ## General ##
     "boot"
     "dtbo"
     "odm"
     "logo"
-    "mi_ext"
     "product"
     "recovery"
     "system"
     "vbmeta"
     "vendor"
+    ## Xiaomi ##
+    "mi_ext"
 )
 
 if [ $(uname -m) = "x86_64" ]; then
