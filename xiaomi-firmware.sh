@@ -53,6 +53,8 @@ blocklist=(
     "vendor"
     ## General (MTK) ##
     "preloader"
+    ## Oplus ##
+    "my_"
     ## Xiaomi ##
     "mi_ext"
 )
@@ -135,7 +137,7 @@ esac
 
 LOGI "Cleaning up the out dir from useless files"
 for image in ${blocklist[@]}; do
-    rm -rf "${image}"*
+    rm -rf *"${image}"*
 done
 
 # Push on vendor/firmware
