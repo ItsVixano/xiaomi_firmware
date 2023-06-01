@@ -51,6 +51,8 @@ blocklist=(
     "system"
     "vbmeta"
     "vendor"
+    ## General (MTK) ##
+    "preloader"
     ## Xiaomi ##
     "mi_ext"
 )
