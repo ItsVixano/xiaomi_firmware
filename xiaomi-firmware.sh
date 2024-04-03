@@ -20,16 +20,20 @@ MY_DIR="${PWD}"
 MY_BINS="${MY_DIR}/bin"
 ANDROID_ROOT="${MY_DIR}/.."
 VENDOR_FIRMWARE="${ANDROID_ROOT}"/vendor/firmware
+INCLUDE_DTBO="false"
 RECOVERY_PACKAGE=""
 DEVICE=""
 
 while [ "$#" -gt 0 ]; do
     case "${1}" in
+        --dtbo)
+                INCLUDE_DTBO="true"
+                ;;
+        -d|--device)
+                DEVICE="${2}"
+                ;;
         --zip)
                 RECOVERY_PACKAGE="${MY_DIR}"/"${2}"
-                ;;
-        --device)
-                DEVICE="${2}"
                 ;;
     esac
     shift
@@ -43,7 +47,6 @@ fi
 blocklist=(
     ## General ##
     "boot"
-    "dtbo"
     "odm"
     "logo"
     "product"
@@ -58,6 +61,10 @@ blocklist=(
     ## Xiaomi ##
     "mi_ext"
 )
+
+if [ "$INCLUDE_DTBO" == "false" ]; then
+    blocklist+=("dtbo")
+fi
 
 if [ $(uname -m) = "x86_64" ]; then
     BIN_PATH="${MY_BINS}"/linux-amd64
