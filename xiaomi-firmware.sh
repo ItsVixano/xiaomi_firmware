@@ -17,8 +17,8 @@ LOGE() {
 
 # Vars
 MY_DIR="${PWD}"
-MY_BINS="${MY_DIR}/bin"
-ANDROID_ROOT="${MY_DIR}/.."
+BIN_PATH="${MY_DIR}"/bin/linux-$(uname -m)
+ANDROID_ROOT="${MY_DIR}"/..
 VENDOR_FIRMWARE="${ANDROID_ROOT}"/vendor/firmware
 INCLUDE_DTBO="false"
 RECOVERY_PACKAGE=""
@@ -27,14 +27,14 @@ DEVICE=""
 while [ "$#" -gt 0 ]; do
     case "${1}" in
         --dtbo)
-                INCLUDE_DTBO="true"
-                ;;
-        -d|--device)
-                DEVICE="${2}"
-                ;;
+            INCLUDE_DTBO="true"
+            ;;
+        -d | --device)
+            DEVICE="${2}"
+            ;;
         --zip)
-                RECOVERY_PACKAGE="${MY_DIR}"/"${2}"
-                ;;
+            RECOVERY_PACKAGE="${MY_DIR}"/"${2}"
+            ;;
     esac
     shift
 done
@@ -64,15 +64,6 @@ blocklist=(
 
 if [ "$INCLUDE_DTBO" == "false" ]; then
     blocklist+=("dtbo")
-fi
-
-if [ $(uname -m) = "x86_64" ]; then
-    BIN_PATH="${MY_BINS}"/linux-amd64
-elif [ $(uname -m) = "aarch64" ]; then
-    BIN_PATH="${MY_BINS}"/linux-arm64
-else
-    LOGE "Unknown architecture!"
-    exit 0
 fi
 
 # Defs
@@ -122,12 +113,12 @@ if [ "${IS_AB}" = true ]; then
     # Extract for AB roms
     LOGI "Extracting payload.bin from ${RECOVERY_PACKAGE}"
     LOGW "This operation will take a while, take a seat and wait :D"
-    extract_fwab &> /dev/null
+    extract_fwab &>/dev/null
     result=$?
 else
     # Extract for A-Only roms
     LOGI "Extracting firmware-update/ folder from ${RECOVERY_PACKAGE}"
-    extract_fwaonly &> /dev/null
+    extract_fwaonly &>/dev/null
     result=$?
 fi
 
@@ -141,7 +132,6 @@ case ${result} in
         ;;
 esac
 
-
 LOGI "Cleaning up the out dir from useless files"
 for image in ${blocklist[@]}; do
     rm -rf *"${image}"*
@@ -154,7 +144,7 @@ chmod 644 "${ANDROID_ROOT}"/vendor/firmware/"${DEVICE}"/radio/*
 
 # Generate device makefile
 LOGI "Generating ${VENDOR_FIRMWARE}/${DEVICE}/firmware.mk"
-cat << EOF > "${VENDOR_FIRMWARE}"/"${DEVICE}"/firmware.mk
+cat <<EOF >"${VENDOR_FIRMWARE}"/"${DEVICE}"/firmware.mk
 LOCAL_PATH := \$(call my-dir)
 
 ifeq (\$(TARGET_DEVICE),${DEVICE})
@@ -178,7 +168,7 @@ if [ "${IS_AB}" = true ]; then
     fi
 
     LOGI "Generating ${VENDOR_FIRMWARE}/${DEVICE}/config.mk"
-    cat << EOF > "${VENDOR_FIRMWARE}"/"${DEVICE}"/config.mk
+    cat <<EOF >"${VENDOR_FIRMWARE}"/"${DEVICE}"/config.mk
 FIRMWARE_IMAGES := \\
 $(printf "$partitions")
 
