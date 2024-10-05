@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (C) 2023 Giovanni Ricca
+# Copyright (C) 2023-2024 Giovanni Ricca
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 # Logging defs
@@ -20,15 +20,11 @@ MY_DIR="${PWD}"
 BIN_PATH="${MY_DIR}"/bin/linux-$(uname -m)
 ANDROID_ROOT="${MY_DIR}"/..
 VENDOR_FIRMWARE="${ANDROID_ROOT}"/vendor/firmware
-INCLUDE_DTBO="false"
 RECOVERY_PACKAGE=""
 DEVICE=""
 
 while [ "$#" -gt 0 ]; do
     case "${1}" in
-        --dtbo)
-            INCLUDE_DTBO="true"
-            ;;
         -d | --device)
             DEVICE="${2}"
             ;;
@@ -44,41 +40,40 @@ if [[ -z "$RECOVERY_PACKAGE" || -z "${DEVICE}" ]]; then
     exit 0
 fi
 
-blocklist=(
-    ## General ##
-    "boot"
-    "odm"
-    "logo"
-    "product"
-    "recovery"
-    "system"
-    "vbmeta"
-    "vendor"
-    ## General (MTK) ##
-    "preloader"
-    ## Oplus ##
-    "my_"
-    ## Xiaomi ##
-    "mi_ext"
-)
-
-if [ "$INCLUDE_DTBO" == "false" ]; then
-    blocklist+=("dtbo")
-fi
 
 # Defs
 extract_fwab() {
-    # Extract the payload
-    "${BIN_PATH}"/android-ota-extractor "${RECOVERY_PACKAGE}"
-    # Remove the payload.bin file
-    rm -rf payload.bin
+    # Grab the firmware list from `proprietary-firmware.txt`
+    if [[ ! -f "${ANDROID_ROOT}/device/xiaomi/${DEVICE}/proprietary-firmware.txt" ]]; then
+        LOGE "proprietary-firmware.txt does not exist"
+        return 1
+    fi
+    local device_firmware_list=$(cat "${ANDROID_ROOT}"/device/xiaomi/"${DEVICE}"/proprietary-firmware.txt | sed "s/.img;AB//" | tail -n +3)
+    # Extract payload.bin
+    unzip "${RECOVERY_PACKAGE}" "payload.bin"
+    # Extract the necessary firmware images
+    LOGI "Copying the firmware files inside ${VENDOR_FIRMWARE}/${DEVICE}/radio"
+    for firmware in $device_firmware_list; do
+        "${BIN_PATH}"/magiskboot extract payload.bin $firmware "${VENDOR_FIRMWARE}"/"${DEVICE}"/radio/${firmware}.img
+    done
+    chmod 644 "${VENDOR_FIRMWARE}"/"${DEVICE}"/radio/*
 }
 
 extract_fwaonly() {
+    # Grab the firmware list from `proprietary-firmware.txt`
+    if [[ ! -f "${ANDROID_ROOT}/device/xiaomi/${DEVICE}/proprietary-firmware.txt" ]]; then
+        LOGE "proprietary-firmware.txt does not exist"
+        return 1
+    fi
+    local device_firmware_list=$(cat "${ANDROID_ROOT}"/device/xiaomi/"${DEVICE}"/proprietary-firmware.txt | sed "s/.img;AB//" | tail -n +3)
     # Extract firmware-update folder
     unzip "${RECOVERY_PACKAGE}" "firmware-update/*"
-    # Go inside extracted dir
-    cd firmware-update
+    # Extract the necessary firmware images
+    LOGI "Copying the firmware files inside ${VENDOR_FIRMWARE}/${DEVICE}/radio"
+    for firmware in $device_firmware_list; do
+        cp ${firmware}.* "${VENDOR_FIRMWARE}"/"${DEVICE}"/radio/
+    done
+    chmod 644 "${VENDOR_FIRMWARE}"/"${DEVICE}"/radio/*
 }
 
 clean_out() {
@@ -104,7 +99,7 @@ if [ "${IS_AB}" = true ]; then
     touch "${VENDOR_FIRMWARE}"/"${DEVICE}"/config.mk
 fi
 
-# Copy out device firmware
+# Cleanup "out/"
 clean_out
 cd out/
 
@@ -127,20 +122,10 @@ case ${result} in
         LOGI "Extracted successfully!"
         ;;
     *)
-        LOGE "Extraction!"
+        LOGE "Extraction failed!"
         exit 0
         ;;
 esac
-
-LOGI "Cleaning up the out dir from useless files"
-for image in ${blocklist[@]}; do
-    rm -rf *"${image}"*
-done
-
-# Push on vendor/firmware
-LOGI "Copying the firmware files inside ${ANDROID_ROOT}/vendor/firmware/${DEVICE}/radio"
-mv * "${ANDROID_ROOT}"/vendor/firmware/"${DEVICE}"/radio
-chmod 644 "${ANDROID_ROOT}"/vendor/firmware/"${DEVICE}"/radio/*
 
 # Generate device makefile
 LOGI "Generating ${VENDOR_FIRMWARE}/${DEVICE}/firmware.mk"
@@ -176,6 +161,6 @@ AB_OTA_PARTITIONS += \$(FIRMWARE_IMAGES)
 EOF
 fi
 
-LOGI "Done!! Check ${VENDOR_FIRMWARE}/${DEVICE} before using it :D"
+LOGI "Done! Check ${VENDOR_FIRMWARE}/${DEVICE} before using it :D"
 clean_out
 ## END OF THE MAGIC ##

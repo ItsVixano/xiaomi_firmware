@@ -14,15 +14,11 @@ Cool script for generating vendor/firmware/${device} folder from the recovery ro
 - Check if vendor/firmware/${device} exist
 - Enjoy :D 
 
-## ToDo
-- Make the script more generic
-- ...
-
 ## Credits
 - [the-muppets/proprietary_vendor_firmware](https://gitlab.com/the-muppets/proprietary_vendor_firmware/-/tree/master)
-- [tobyxdd/android-ota-payload-extractor](https://github.com/tobyxdd/android-ota-payload-extractor)
+- [topjohnwu/Magisk](https://github.com/topjohnwu/Magisk)
 
 ```
-# Copyright (C) 2023 Giovanni Ricca
+# Copyright (C) 2023-2024 Giovanni Ricca
 # SPDX-License-Identifier: GPL-3.0-or-later
 ```
