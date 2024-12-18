@@ -48,7 +48,7 @@ extract_fwab() {
         LOGE "proprietary-firmware.txt does not exist"
         return 1
     fi
-    local device_firmware_list=$(cat "${ANDROID_ROOT}"/device/xiaomi/"${DEVICE}"/proprietary-firmware.txt | sed "s/.img;AB//" | tail -n +3)
+    local device_firmware_list=$(cat "${ANDROID_ROOT}"/device/xiaomi/"${DEVICE}"/proprietary-firmware.txt | sed -E 's/.*:([^;]+).*/\1/; s/\..*$//' | tail -n +3)
     # Extract payload.bin
     unzip "${RECOVERY_PACKAGE}" "payload.bin"
     # Extract the necessary firmware images
@@ -65,13 +65,13 @@ extract_fwaonly() {
         LOGE "proprietary-firmware.txt does not exist"
         return 1
     fi
-    local device_firmware_list=$(cat "${ANDROID_ROOT}"/device/xiaomi/"${DEVICE}"/proprietary-firmware.txt | sed "s/.img;AB//" | tail -n +3)
+    local device_firmware_list=$(cat "${ANDROID_ROOT}"/device/xiaomi/"${DEVICE}"/proprietary-firmware.txt | sed -E 's/.*:([^;]+).*/\1/; s/\..*$//' | tail -n +3)
     # Extract firmware-update folder
     unzip "${RECOVERY_PACKAGE}" "firmware-update/*"
     # Extract the necessary firmware images
     LOGI "Copying the firmware files inside ${VENDOR_FIRMWARE}/${DEVICE}/radio"
     for firmware in $device_firmware_list; do
-        cp ${firmware}.* "${VENDOR_FIRMWARE}"/"${DEVICE}"/radio/
+        cp ${firmware}* "${VENDOR_FIRMWARE}"/"${DEVICE}"/radio/
     done
     chmod 644 "${VENDOR_FIRMWARE}"/"${DEVICE}"/radio/*
 }
