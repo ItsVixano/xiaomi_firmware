@@ -22,6 +22,8 @@ ANDROID_ROOT="${MY_DIR}"/..
 VENDOR_FIRMWARE="${ANDROID_ROOT}"/vendor/firmware
 RECOVERY_PACKAGE=""
 DEVICE=""
+LINEAGE_MODE="false"
+DUMP_DIR=""
 
 while [ "$#" -gt 0 ]; do
     case "${1}" in
@@ -30,6 +32,10 @@ while [ "$#" -gt 0 ]; do
             ;;
         --zip)
             RECOVERY_PACKAGE="${MY_DIR}"/"${2}"
+            ;;
+        --lineage)
+            LINEAGE_MODE="true"
+            DUMP_DIR="${2}"
             ;;
     esac
     shift
@@ -40,6 +46,8 @@ if [[ -z "$RECOVERY_PACKAGE" || -z "${DEVICE}" ]]; then
     exit 0
 fi
 
+[ "$LINEAGE_MODE" == "false" ] && OUTPUT_DIR=${VENDOR_FIRMWARE}/${DEVICE}/radio
+[ "$LINEAGE_MODE" == "true" ] && OUTPUT_DIR=${DUMP_DIR}
 
 # Defs
 extract_fwab() {
@@ -52,11 +60,11 @@ extract_fwab() {
     # Extract payload.bin
     unzip "${RECOVERY_PACKAGE}" "payload.bin"
     # Extract the necessary firmware images
-    LOGI "Copying the firmware files inside ${VENDOR_FIRMWARE}/${DEVICE}/radio"
+    LOGI "Copying the firmware files inside ${OUTPUT_DIR}"
     for firmware in $device_firmware_list; do
-        "${BIN_PATH}"/magiskboot extract payload.bin $firmware "${VENDOR_FIRMWARE}"/"${DEVICE}"/radio/${firmware}.img
+        "${BIN_PATH}"/magiskboot extract payload.bin $firmware "${OUTPUT_DIR}"/${firmware}.img
+        chmod 644 "${OUTPUT_DIR}"/${firmware}.img
     done
-    chmod 644 "${VENDOR_FIRMWARE}"/"${DEVICE}"/radio/*
 }
 
 extract_fwaonly() {
@@ -69,11 +77,11 @@ extract_fwaonly() {
     # Extract firmware-update folder
     unzip "${RECOVERY_PACKAGE}" "firmware-update/*"
     # Extract the necessary firmware images
-    LOGI "Copying the firmware files inside ${VENDOR_FIRMWARE}/${DEVICE}/radio"
+    LOGI "Copying the firmware files inside ${OUTPUT_DIR}"
     for firmware in $device_firmware_list; do
-        cp ${firmware}* "${VENDOR_FIRMWARE}"/"${DEVICE}"/radio/
+        cp ${firmware}.* "${OUTPUT_DIR}"
+        chmod 644 "${OUTPUT_DIR}"/${firmware}.*
     done
-    chmod 644 "${VENDOR_FIRMWARE}"/"${DEVICE}"/radio/*
 }
 
 clean_out() {
@@ -92,11 +100,13 @@ if zipinfo -1 "${RECOVERY_PACKAGE}" | grep -q payload.bin; then
 fi
 
 # Generate dummy device makefile
-rm -rf "${VENDOR_FIRMWARE}"/"${DEVICE}"
-mkdir -p "${VENDOR_FIRMWARE}"/"${DEVICE}"/radio
-touch "${VENDOR_FIRMWARE}"/"${DEVICE}"/firmware.mk
-if [ "${IS_AB}" = true ]; then
-    touch "${VENDOR_FIRMWARE}"/"${DEVICE}"/config.mk
+if [ "$LINEAGE_MODE" == "false" ]; then
+    rm -rf "${VENDOR_FIRMWARE}"/"${DEVICE}"
+    mkdir -p "${VENDOR_FIRMWARE}"/"${DEVICE}"/radio
+    touch "${VENDOR_FIRMWARE}"/"${DEVICE}"/firmware.mk
+    if [ "${IS_AB}" = true ]; then
+        touch "${VENDOR_FIRMWARE}"/"${DEVICE}"/config.mk
+    fi
 fi
 
 # Cleanup "out/"
@@ -128,8 +138,9 @@ case ${result} in
 esac
 
 # Generate device makefile
-LOGI "Generating ${VENDOR_FIRMWARE}/${DEVICE}/firmware.mk"
-cat <<EOF >"${VENDOR_FIRMWARE}"/"${DEVICE}"/firmware.mk
+if [ "$LINEAGE_MODE" == "false" ]; then
+    LOGI "Generating ${VENDOR_FIRMWARE}/${DEVICE}/firmware.mk"
+    cat <<EOF >"${VENDOR_FIRMWARE}"/"${DEVICE}"/firmware.mk
 LOCAL_PATH := \$(call my-dir)
 
 ifeq (\$(TARGET_DEVICE),${DEVICE})
@@ -141,26 +152,27 @@ RADIO_FILES := \$(wildcard \$(LOCAL_PATH)/radio/*)
 endif
 EOF
 
-if [ "${IS_AB}" = true ]; then
-    for firmware_file in $(ls -1 "${VENDOR_FIRMWARE}"/"${DEVICE}"/radio); do
+    if [ "${IS_AB}" = true ]; then
+        for firmware_file in $(ls -1 "${VENDOR_FIRMWARE}"/"${DEVICE}"/radio); do
+            if [ ! -z ${LAST_FILE} ]; then
+                partitions+="    ${LAST_FILE%.*} \\\\\n"
+            fi
+            LAST_FILE=${firmware_file}
+        done
         if [ ! -z ${LAST_FILE} ]; then
-            partitions+="    ${LAST_FILE%.*} \\\\\n"
+            partitions+="    ${LAST_FILE%.*}"
         fi
-        LAST_FILE=${firmware_file}
-    done
-    if [ ! -z ${LAST_FILE} ]; then
-        partitions+="    ${LAST_FILE%.*}"
-    fi
 
-    LOGI "Generating ${VENDOR_FIRMWARE}/${DEVICE}/config.mk"
-    cat <<EOF >"${VENDOR_FIRMWARE}"/"${DEVICE}"/config.mk
+        LOGI "Generating ${VENDOR_FIRMWARE}/${DEVICE}/config.mk"
+        cat <<EOF >"${VENDOR_FIRMWARE}"/"${DEVICE}"/config.mk
 FIRMWARE_IMAGES := \\
 $(printf "$partitions")
 
 AB_OTA_PARTITIONS += \$(FIRMWARE_IMAGES)
 EOF
+    fi
 fi
 
-LOGI "Done! Check ${VENDOR_FIRMWARE}/${DEVICE} before using it :D"
+LOGI "Done!"
 clean_out
 ## END OF THE MAGIC ##
